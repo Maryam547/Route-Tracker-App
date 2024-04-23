@@ -3,6 +3,8 @@
         android:label="route_tracker_app"
         android:name="${applicationName}"
         android:icon="@mipmap/ic_launcher">
+        <meta-data android:name="com.google.android.geo.API_KEY"
+               android:value="AIzaSyCosuqD-9ZaT1ghuGklG7-MrFH3bgfUHY0"/>
         <activity
             android:name=".MainActivity"
             android:exported="true"
@@ -29,7 +31,6 @@
         <meta-data
             android:name="flutterEmbedding"
             android:value="2" />
-        <meta-data android:name="com.google.android.geo.API_KEY"
-               android:value="YOUR KEY HERE"/>    
+              
     </application>
 </manifest>
