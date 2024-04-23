@@ -14,6 +14,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
   late LocationService locationService;
   late GoogleMapController googleMapController;
+  Set<Marker> markers = {};
 
   @override
   void initState() {
@@ -28,6 +29,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     return GoogleMap(
       zoomControlsEnabled: false,
       initialCameraPosition: initalCameraPosition,
+      markers: markers,
       onMapCreated: (controller) {
         googleMapController = controller;
         updateCurrentLocation();
@@ -38,6 +40,14 @@ class _GoogleMapViewState extends State<GoogleMapView> {
   void updateCurrentLocation() async {
     try {
       var locationData = await locationService.getLocation();
+      LatLng currentPosition =
+          LatLng(locationData.latitude!, locationData.longitude!);
+      Marker currentLocationMarker = Marker(
+        markerId: MarkerId('my location'),
+        position: currentPosition,
+      );
+      markers.add(currentLocationMarker);
+      setState(() {});
       CameraPosition myCurrentCameraPosition = CameraPosition(
         target: LatLng(locationData.latitude!, locationData.longitude!),
         zoom: 16,
