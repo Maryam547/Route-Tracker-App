@@ -63,3 +63,11 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
   }
 }
+//vid63
+//textfield -> search places
+//create route
+//talk in vid64 and apply it in vid start from 71 to
+//create text field
+//listen to the text field
+//search place (important)
+//display results
