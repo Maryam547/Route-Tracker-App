@@ -13,7 +13,10 @@ class RouteTrackerApp extends StatelessWidget {
   Widget build(BuildContext context) {
     return const MaterialApp(
       debugShowCheckedModeBanner: false,
-      home: GoogleMapView(),
+      home: Scaffold(
+        resizeToAvoidBottomInset: false,
+        body: SafeArea(child: GoogleMapView()),
+      ),
     );
   }
 }
