@@ -70,4 +70,3 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     }
   }
 }
-
