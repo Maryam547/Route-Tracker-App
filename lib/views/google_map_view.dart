@@ -15,6 +15,7 @@ class GoogleMapView extends StatefulWidget {
 
 class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
+  late GoogleMapsPlacesService googleMapsPlacesService;
   late LocationService locationService;
   late TextEditingController textEditingController;
   late GoogleMapController googleMapController;
@@ -22,14 +23,22 @@ class _GoogleMapViewState extends State<GoogleMapView> {
 
   @override
   void initState() {
+    googleMapsPlacesService = GoogleMapsPlacesService();
     textEditingController = TextEditingController();
     initalCameraPosition = const CameraPosition(target: LatLng(0, 0));
     locationService = LocationService();
-    textEditingController.addListener(() {
-      print(textEditingController.text);
-    });
+    fetchPredictions();
 
     super.initState();
+  }
+
+  void fetchPredictions() {
+    textEditingController.addListener(() async {
+      if (textEditingController.text.isNotEmpty) {
+        var result = await googleMapsPlacesService.getPredictions(
+            input: textEditingController.text);
+      }
+    });
   }
 
   @override
@@ -50,12 +59,16 @@ class _GoogleMapViewState extends State<GoogleMapView> {
           onMapCreated: (controller) {
             googleMapController = controller;
             Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child:
-                  CustomTextField(textEditingController: textEditingController),
-            );
+                top: 16,
+                left: 16,
+                right: 16,
+                child: Column(
+                  children: [
+                    CustomTextField(
+                        textEditingController: textEditingController),
+                  ],
+                ),
+                CustomListView(places:places));
             updateCurrentLocation();
           },
         ),
@@ -87,5 +100,24 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     } catch (e) {
       // TODO
     }
+  }
+}
+
+class CustomListView extends StatelessWidget {
+  const CustomListView({
+    super.key,
+  });
+
+  @override
+  Widget build(BuildContext context) {
+    return ListView.separated(
+      shrinkWrap: true,
+        itemBuilder: (context, index) {
+          return Text('data');
+        },
+        separatorBuilder: (context, index) {
+          return Divider();
+        },
+        itemCount: places.length,);
   }
 }
