@@ -1,9 +1,15 @@
+import 'dart:async';
+import 'dart:math';
+
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/widgets.dart';
+import 'package:route_tracker_app/models/places_autocomplete_model/place_autocomplete_model.dart';
+import 'package:route_tracker_app/utils/google_map_place_service.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:route_tracker_app/utils/location_service.dart';
 import 'package:route_tracker_app/widgets/custom_text_field.dart';
+import 'package:uuid/uuid.dart';
 //import 'package:location/location.dart';
 
 class GoogleMapView extends StatefulWidget {
@@ -15,14 +21,19 @@ class GoogleMapView extends StatefulWidget {
 
 class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
+
   late GoogleMapsPlacesService googleMapsPlacesService;
   late LocationService locationService;
   late TextEditingController textEditingController;
   late GoogleMapController googleMapController;
+  String? sesstionToken;
+  late Uuid uuid;
   Set<Marker> markers = {};
+  List<PlaceModel> places = [];
 
   @override
   void initState() {
+    uuid = const Uuid();
     googleMapsPlacesService = GoogleMapsPlacesService();
     textEditingController = TextEditingController();
     initalCameraPosition = const CameraPosition(target: LatLng(0, 0));
@@ -34,9 +45,17 @@ class _GoogleMapViewState extends State<GoogleMapView> {
 
   void fetchPredictions() {
     textEditingController.addListener(() async {
+      sesstionToken ??= uuid.v4();
       if (textEditingController.text.isNotEmpty) {
         var result = await googleMapsPlacesService.getPredictions(
-            input: textEditingController.text);
+            sesstionToken: sesstionToken!, input: textEditingController.text);
+        places.clear();
+        sesstionToken = null;
+        places.addAll(result);
+        setState(() {});
+      } else {
+        places.clear();
+        setState(() {});
       }
     });
   }
@@ -50,6 +69,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
 
   @override
   Widget build(BuildContext context) {
+    print(uuid.v4());
     return Stack(
       children: [
         GoogleMap(
@@ -59,17 +79,31 @@ class _GoogleMapViewState extends State<GoogleMapView> {
           onMapCreated: (controller) {
             googleMapController = controller;
             Positioned(
-                top: 16,
-                left: 16,
-                right: 16,
-                child: Column(
-                  children: [
-                    CustomTextField(
-                        textEditingController: textEditingController),
-                  ],
-                ),
-                CustomListView(places:places));
-            updateCurrentLocation();
+              top: 16,
+              left: 16,
+              right: 16,
+              child: Column(
+                children: [
+                  CustomTextField(
+                    textEditingController: textEditingController,
+                  ),
+                  SizedBox(
+                    height: 16,
+                  ),
+                  CustomListView(
+                    onPlaceSelect: (placeDetailsModel) async {
+                      textEditingController.clear();
+                      places.clear();
+                      setState(() {});
+                      //print(placeDetailsModel.geometry!.location.lat);
+                    },
+                    places: places,
+                    googleMapsPlacesService: googleMapsPlacesService,
+                  )
+                ],
+              ),
+            );
+            //updateCurrentLocation();
           },
         ),
       ],
@@ -100,24 +134,5 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     } catch (e) {
       // TODO
     }
-  }
-}
-
-class CustomListView extends StatelessWidget {
-  const CustomListView({
-    super.key,
-  });
-
-  @override
-  Widget build(BuildContext context) {
-    return ListView.separated(
-      shrinkWrap: true,
-        itemBuilder: (context, index) {
-          return Text('data');
-        },
-        separatorBuilder: (context, index) {
-          return Divider();
-        },
-        itemCount: places.length,);
   }
 }
