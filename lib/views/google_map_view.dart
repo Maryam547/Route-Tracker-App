@@ -1,4 +1,6 @@
+import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter/widgets.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
 import 'package:route_tracker_app/utils/location_service.dart';
 import 'package:route_tracker_app/widgets/custom_text_field.dart';
@@ -14,15 +16,27 @@ class GoogleMapView extends StatefulWidget {
 class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
   late LocationService locationService;
+  late TextEditingController textEditingController;
   late GoogleMapController googleMapController;
   Set<Marker> markers = {};
 
   @override
   void initState() {
+    textEditingController = TextEditingController();
     initalCameraPosition = const CameraPosition(target: LatLng(0, 0));
     locationService = LocationService();
+    textEditingController.addListener(() {
+      print(textEditingController.text);
+    });
 
     super.initState();
+  }
+
+  @override
+  void dispose() {
+    // TODO: implement dispose
+    textEditingController.dispose();
+    super.dispose();
   }
 
   @override
@@ -36,7 +50,12 @@ class _GoogleMapViewState extends State<GoogleMapView> {
           onMapCreated: (controller) {
             googleMapController = controller;
             Positioned(
-                top: 16, left: 16, right: 16, child: const CustomTextField());
+              top: 16,
+              left: 16,
+              right: 16,
+              child:
+                  CustomTextField(textEditingController: textEditingController),
+            );
             updateCurrentLocation();
           },
         ),
