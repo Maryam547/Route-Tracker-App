@@ -1,16 +1,26 @@
 import 'dart:async';
 import 'dart:math';
 
-import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter/widgets.dart';
-import 'package:route_tracker_app/models/places_autocomplete_model/place_autocomplete_model.dart';
-import 'package:route_tracker_app/utils/google_map_place_service.dart';
+import 'package:flutter_polyline_points/flutter_polyline_points.dart';
 import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:location/location.dart';
+import 'package:route_tracker_app/models/location_info/lat_lng.dart';
+import 'package:route_tracker_app/models/location_info/location.dart';
+import 'package:route_tracker_app/models/location_info/location_info.dart';
+import 'package:route_tracker_app/models/places_autocomplete_model/place_autocomplete_model.dart';
+import 'package:route_tracker_app/models/routes_model/route.dart';
+import 'package:route_tracker_app/models/routes_model/routes_model.dart';
+import 'package:route_tracker_app/utils/map_services.dart';
+import 'package:route_tracker_app/utils/google_map_place_service.dart';
 import 'package:route_tracker_app/utils/location_service.dart';
-import 'package:route_tracker_app/widgets/custom_text_field.dart';
+import 'package:route_tracker_app/utils/routes_service.dart';
+import 'package:route_tracker_app/widgets/custom_list_view.dart';
 import 'package:uuid/uuid.dart';
-//import 'package:location/location.dart';
+import 'package:route_tracker_app/widgets/custom_text_field.dart';
+
+import 'package:flutter/cupertino.dart';
+import 'package:flutter/widgets.dart';
 
 class GoogleMapView extends StatefulWidget {
   const GoogleMapView({super.key});
@@ -22,39 +32,41 @@ class GoogleMapView extends StatefulWidget {
 class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
 
-  late GoogleMapsPlacesService googleMapsPlacesService;
+  late MapServices googleMapsPlacesService;
   late LocationService locationService;
   late TextEditingController textEditingController;
   late GoogleMapController googleMapController;
   String? sesstionToken;
   late Uuid uuid;
   Set<Marker> markers = {};
+  late RoutesService routesService;
+  Set<Polyline> polyLines = {};
+  late LatLng currentLocation;
+  late LatLng destination;
   List<PlaceModel> places = [];
 
   @override
   void initState() {
     uuid = const Uuid();
-    googleMapsPlacesService = GoogleMapsPlacesService();
+    googleMapsPlacesService = MapServices();
     textEditingController = TextEditingController();
     initalCameraPosition = const CameraPosition(target: LatLng(0, 0));
     locationService = LocationService();
+    routesService = RoutesService();
     fetchPredictions();
 
     super.initState();
   }
 
   void fetchPredictions() {
-    textEditingController.addListener(() async {
+    textEditingController.addListener(() {
       sesstionToken ??= uuid.v4();
       if (textEditingController.text.isNotEmpty) {
-        var result = await googleMapsPlacesService.getPredictions(
-            sesstionToken: sesstionToken!, input: textEditingController.text);
-        places.clear();
-        sesstionToken = null;
-        places.addAll(result);
-        setState(() {});
-      } else {
-        places.clear();
+        await MapServices.getPredictions(
+            sesstionToken: sesstionToken!, input: textEditingController.text,places: places);
+        //places.clear();
+        //sesstionToken = null;
+        //places.addAll(result);
         setState(() {});
       }
     });
@@ -73,6 +85,7 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     return Stack(
       children: [
         GoogleMap(
+          polylines: polyLines,
           zoomControlsEnabled: false,
           initialCameraPosition: initalCameraPosition,
           markers: markers,
@@ -94,8 +107,12 @@ class _GoogleMapViewState extends State<GoogleMapView> {
                     onPlaceSelect: (placeDetailsModel) async {
                       textEditingController.clear();
                       places.clear();
+                      sesstionToken = null;
                       setState(() {});
+                      destination = LatLng(placeDetailsModel.geometry!.location!.lat!, placeDetailsModel.geometry!.location!.lng!);
                       //print(placeDetailsModel.geometry!.location.lat);
+                      var points = await getRouteData();
+                      displayRoute(points);
                     },
                     places: places,
                     googleMapsPlacesService: googleMapsPlacesService,
@@ -113,11 +130,11 @@ class _GoogleMapViewState extends State<GoogleMapView> {
   void updateCurrentLocation() async {
     try {
       var locationData = await locationService.getLocation();
-      LatLng currentPosition =
+      currentLocation =
           LatLng(locationData.latitude!, locationData.longitude!);
       Marker currentLocationMarker = Marker(
         markerId: MarkerId('my location'),
-        position: currentPosition,
+        position: currentLocation,
       );
       markers.add(currentLocationMarker);
       setState(() {});
@@ -134,5 +151,43 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     } catch (e) {
       // TODO
     }
+  }
+  
+  Future<List<LatLng>> getRouteData() async{
+    LocationInfoModel origin = LocationInfoModel(
+      location:LocationModel(LatLng:LatLngModel(
+      latitude: currentLocation.latitude,
+      longitude: currentLocation.longitude,
+    )),
+    );
+    LocationInfoModel destination = LocationInfoModel(
+      location:LocationModel(LatLng:LatLngModel(
+      latitude: destination.latitude,
+      longitude: destination.longitude,
+    )),
+    );
+    RoutesModel routes = await routesService.fetchRoutes(origin: origin, destination: destination);
+    PolylinePoints polylinePoints = PolylinePoints();
+    List<LatLng> points = getDecodedRoute(polylinePoints, routes);
+    return points;
+  }
+
+  List<LatLng> getDecodedRoute(PolylinePoints polylinePoints, RoutesModel routes) {
+    List<PointLatLng> result = polylinePoints.decodePolyline(routes.routes!.first.polyline!.encodedPolyline!);
+    
+    List<LatLng> points = result.map((e) => LatLng(e.latitude, e.longitude)).toList();
+    return points;
+  }
+  
+  void displayRoute(List<LatLng> points) {
+    Polyline route = Polyline(
+      color: Colors.blue,
+      width: 5,
+      polylineId: PolylineId('route'),
+    points: points,
+
+    );
+    polyLines.add(route);
+    setState(() {});
   }
 }
