@@ -6,7 +6,7 @@ import 'package:route_tracker_app/models/places_autocomplete_model/place_autocom
 
 class PlacesService {
   final String baseUrl = 'https://maps.googleapis.com/maps/api/place';
-  final String apiKey = 'AIzaSyDU9sAPBL2Q3KGOH210WpCUxVuCTcfBPN4';
+  final String apiKey = 'AIzaSyB-by1Ym1UzVJPDK2SZK3gVaKq1t-xLzYE';
   Future<List<PlaceModel>> getPredictions(
       {required String input, required String sesstionToken}) async {
     var response = await http.get(Uri.parse(
