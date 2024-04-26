@@ -1,20 +1,17 @@
-import 'package:route_tracker_app/models/location_info/location_info.dart';
+import 'lat_lng.dart';
 
-//import 'location.dart';
+class LocationModel {
+  LatLngModel? latLng;
 
-class LocationInfoModel {
-  LocationInfoModel? location;
+  LocationModel({this.latLng});
 
-  LocationInfoModel({this.location});
-
-  factory LocationInfoModel.fromJson(Map<String, dynamic> json) =>
-      LocationInfoModel(
-        location: json['location'] == null
+  factory LocationModel.fromJson(Map<String, dynamic> json) => LocationModel(
+        latLng: json['latLng'] == null
             ? null
-            : LocationInfoModel.fromJson(json['location'] as Map<String, dynamic>),
+            : LatLngModel.fromJson(json['latLng'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
-        'location': location?.toJson(),
+        'latLng': latLng?.toJson(),
       };
 }

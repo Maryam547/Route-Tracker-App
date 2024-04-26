@@ -1,17 +1,18 @@
-import 'lat_lng.dart';
+import 'location.dart';
 
 class LocationInfoModel {
-  LatLngModel? latLng;
+  LocationModel? location;
 
-  LocationInfoModel({this.latLng});
+  LocationInfoModel({this.location});
 
-  factory LocationInfoModel.fromJson(Map<String, dynamic> json) => LocationInfoModel(
-        latLng: json['latLng'] == null
+  factory LocationInfoModel.fromJson(Map<String, dynamic> json) =>
+      LocationInfoModel(
+        location: json['location'] == null
             ? null
-            : LatLngModel.fromJson(json['latLng'] as Map<String, dynamic>),
+            : LocationModel.fromJson(json['location'] as Map<String, dynamic>),
       );
 
   Map<String, dynamic> toJson() => {
-        'latLng': latLng?.toJson(),
+        'location': location?.toJson(),
       };
 }

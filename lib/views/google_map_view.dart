@@ -31,44 +31,40 @@ class GoogleMapView extends StatefulWidget {
 
 class _GoogleMapViewState extends State<GoogleMapView> {
   late CameraPosition initalCameraPosition;
-
-  late MapServices googleMapsPlacesService;
-  late LocationService locationService;
+  late MapServices mapServices;
   late TextEditingController textEditingController;
   late GoogleMapController googleMapController;
   String? sesstionToken;
   late Uuid uuid;
   Set<Marker> markers = {};
-  late RoutesService routesService;
-  Set<Polyline> polyLines = {};
-  late LatLng currentLocation;
-  late LatLng destination;
   List<PlaceModel> places = [];
+  Set<Polyline> polyLines = {};
+  late LatLng destination;
+  Timer? debounce;
 
   @override
   void initState() {
+    mapServices = MapServices();
     uuid = const Uuid();
-    googleMapsPlacesService = MapServices();
     textEditingController = TextEditingController();
     initalCameraPosition = const CameraPosition(target: LatLng(0, 0));
-    locationService = LocationService();
-    routesService = RoutesService();
     fetchPredictions();
-
     super.initState();
   }
 
   void fetchPredictions() {
     textEditingController.addListener(() {
-      sesstionToken ??= uuid.v4();
-      if (textEditingController.text.isNotEmpty) {
-        await MapServices.getPredictions(
-            sesstionToken: sesstionToken!, input: textEditingController.text,places: places);
-        //places.clear();
-        //sesstionToken = null;
-        //places.addAll(result);
-        setState(() {});
+      if (debounce?.isActive ?? false) {
+        debounce?.cancel();
       }
+      debounce = Timer(const Duration(milliseconds: 100), () async {
+        sesstionToken ??= uuid.v4();
+        await mapServices.getPredictions(
+            input: textEditingController.text,
+            sesstionToken: sesstionToken!,
+            places: places);
+        setState(() {});
+      });
     });
   }
 
@@ -76,74 +72,71 @@ class _GoogleMapViewState extends State<GoogleMapView> {
   void dispose() {
     // TODO: implement dispose
     textEditingController.dispose();
+    debounce?.cancel();
     super.dispose();
   }
 
   @override
   Widget build(BuildContext context) {
-    print(uuid.v4());
     return Stack(
       children: [
         GoogleMap(
           polylines: polyLines,
-          zoomControlsEnabled: false,
-          initialCameraPosition: initalCameraPosition,
           markers: markers,
           onMapCreated: (controller) {
             googleMapController = controller;
-            Positioned(
-              top: 16,
-              left: 16,
-              right: 16,
-              child: Column(
-                children: [
-                  CustomTextField(
-                    textEditingController: textEditingController,
-                  ),
-                  SizedBox(
-                    height: 16,
-                  ),
-                  CustomListView(
-                    onPlaceSelect: (placeDetailsModel) async {
-                      textEditingController.clear();
-                      places.clear();
-                      sesstionToken = null;
-                      setState(() {});
-                      destination = LatLng(placeDetailsModel.geometry!.location!.lat!, placeDetailsModel.geometry!.location!.lng!);
-                      //print(placeDetailsModel.geometry!.location.lat);
-                      var points = await getRouteData();
-                      displayRoute(points);
-                    },
-                    places: places,
-                    googleMapsPlacesService: googleMapsPlacesService,
-                  )
-                ],
-              ),
-            );
-            //updateCurrentLocation();
+            updateCurrentLocation();
           },
+          zoomControlsEnabled: false,
+          initialCameraPosition: initalCameraPosition,
+        ),
+        Positioned(
+          top: 16,
+          left: 16,
+          right: 16,
+          child: Column(
+            children: [
+              CustomTextField(
+                textEditingController: textEditingController,
+              ),
+              const SizedBox(
+                height: 16,
+              ),
+              CustomListView(
+                onPlaceSelect: (placeDetailsModel) async {
+                  textEditingController.clear();
+                  places.clear();
+                  sesstionToken = null;
+                  setState(() {});
+                  destination = LatLng(
+                      placeDetailsModel.geometry!.location!.lat!,
+                      placeDetailsModel.geometry!.location!.lng!);
+                  var points =
+                      await mapServices.getRouteData(desintation: destination);
+                  mapServices.displayRoute(points,
+                      polyLines: polyLines,
+                      googleMapController: googleMapController);
+                  setState(() {});
+                },
+                places: places,
+                mapServices: mapServices,
+              )
+            ],
+          ),
         ),
       ],
     );
   }
 
-  void updateCurrentLocation() async {
+  void updateCurrentLocation() {
     try {
-      var locationData = await locationService.getLocation();
-      currentLocation =
-          LatLng(locationData.latitude!, locationData.longitude!);
-      Marker currentLocationMarker = Marker(
-        markerId: MarkerId('my location'),
-        position: currentLocation,
+      mapServices.updateCurrentLocation(
+        onUpdatecurrentLocation: () {
+          setState(() {});
+        },
+        googleMapController: googleMapController,
+        markers: markers,
       );
-      markers.add(currentLocationMarker);
-      setState(() {});
-      CameraPosition myCurrentCameraPosition = CameraPosition(
-        target: LatLng(locationData.latitude!, locationData.longitude!),
-        zoom: 16,
-      );
-      googleMapController.animateCamera(
-          CameraUpdate.newCameraPosition(myCurrentCameraPosition));
     } on LocationServiceException catch (e) {
       // TODO
     } on LocationPermissionException catch (e) {
@@ -151,43 +144,5 @@ class _GoogleMapViewState extends State<GoogleMapView> {
     } catch (e) {
       // TODO
     }
-  }
-  
-  Future<List<LatLng>> getRouteData() async{
-    LocationInfoModel origin = LocationInfoModel(
-      location:LocationModel(LatLng:LatLngModel(
-      latitude: currentLocation.latitude,
-      longitude: currentLocation.longitude,
-    )),
-    );
-    LocationInfoModel destination = LocationInfoModel(
-      location:LocationModel(LatLng:LatLngModel(
-      latitude: destination.latitude,
-      longitude: destination.longitude,
-    )),
-    );
-    RoutesModel routes = await routesService.fetchRoutes(origin: origin, destination: destination);
-    PolylinePoints polylinePoints = PolylinePoints();
-    List<LatLng> points = getDecodedRoute(polylinePoints, routes);
-    return points;
-  }
-
-  List<LatLng> getDecodedRoute(PolylinePoints polylinePoints, RoutesModel routes) {
-    List<PointLatLng> result = polylinePoints.decodePolyline(routes.routes!.first.polyline!.encodedPolyline!);
-    
-    List<LatLng> points = result.map((e) => LatLng(e.latitude, e.longitude)).toList();
-    return points;
-  }
-  
-  void displayRoute(List<LatLng> points) {
-    Polyline route = Polyline(
-      color: Colors.blue,
-      width: 5,
-      polylineId: PolylineId('route'),
-    points: points,
-
-    );
-    polyLines.add(route);
-    setState(() {});
   }
 }
